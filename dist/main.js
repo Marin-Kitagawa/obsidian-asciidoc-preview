@@ -345,6 +345,7 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
     this.renderGeneration = 0;
 
     this.registerView(VIEW_TYPE, (leaf) => new AsciiDocPreviewView(leaf, this));
+    this.registerExtensions(['adoc', 'asciidoc', 'ad'], 'markdown');
 
     this.addRibbonIcon('book-open', 'Toggle AsciiDoc side-by-side preview', () => this.togglePreview());
     this.addCommand({

@@ -14,7 +14,7 @@ const DIST = join(__dirname, '..', 'dist', 'main.js');
 function obsidianStub() {
   class Plugin {
     constructor(app, manifest) { this.app = app; this.manifest = manifest; }
-    registerView() {} addRibbonIcon() { return {}; } addCommand() {} registerEvent() {}
+    registerView() {} registerExtensions() {} addRibbonIcon() { return {}; } addCommand() {} registerEvent() {}
     addSettingTab() {} addStatusBarItem() { return { setText() {} }; }
     async loadData() { return null; } async saveData() { return null; }
     async load() { await this.onload(); }
