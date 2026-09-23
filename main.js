@@ -272,6 +272,7 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
         text: text || '',
         maxFileSizeKb: this.settings.maxFileSizeKb,
         baseHref: renderer.fileBaseHref(docDir),
+        monoFont: this.monospaceFont(),
       });
       if (gen !== this.renderGeneration) {
         return;
@@ -287,6 +288,16 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
         this.renderPending = false;
         this.requestRender();
       }
+    }
+  }
+
+  /** Obsidian's configured monospace font, e.g. 'FiraCode Nerd Font'. */
+  monospaceFont() {
+    try {
+      const v = getComputedStyle(document.body).getPropertyValue('--font-monospace').trim();
+      return v && v !== 'inherit' ? v : '';
+    } catch (e) {
+      return '';
     }
   }
 

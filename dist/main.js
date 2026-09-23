@@ -151,6 +151,28 @@ function injectBase(html, baseHref) {
 }
 
 /**
+ * Force the code font in the rendered HTML to match Obsidian's configured
+ * monospace font. Needs `!important` because asciidoctor's embedded default
+ * stylesheet sets its own font-family on pre/code.
+ * @param {string} html
+ * @param {string} [monoFont] A CSS font-family list (e.g. from `--font-monospace`).
+ * @returns {string}
+ */
+function injectFont(html, monoFont) {
+  const font = (monoFont || '').trim() ||
+    '"FiraCode Nerd Font","Fira Code",Consolas,"Courier New",monospace';
+  if (!html || html.indexOf('asciidoc-preview-font') !== -1 || html.indexOf('</head>') === -1) {
+    return html;
+  }
+  const style =
+    '<style id="asciidoc-preview-font">' +
+    'pre,code,kbd,samp,.listingblock code,.literalblock code,.source code' +
+    '{font-family:' + font + ' !important;}' +
+    '</style></head>';
+  return html.replace('</head>', style);
+}
+
+/**
  * Render AsciiDoc text with the local asciidoctor CLI.
  *
  * The buffer text is written to a UTF-8 file hidden next to the real document
@@ -166,6 +188,7 @@ function injectBase(html, baseHref) {
  * @param {string} opts.text Current document text.
  * @param {number} [opts.maxFileSizeKb=4096] Reject documents larger than this.
  * @param {string} [opts.baseHref=''] Optional file:// base URL for relative resources.
+ * @param {string} [opts.monoFont=''] Optional CSS font-family list for code blocks.
  * @param {number} [opts.timeoutMs=20000] Kill asciidoctor after this long.
  * @returns {Promise<string>} Resolves with the rendered HTML document.
  */
@@ -195,7 +218,7 @@ function render(opts) {
         reject(err);
         return;
       }
-      resolve(injectBase(stdout, baseHref));
+      resolve(injectFont(injectBase(stdout, baseHref), opts.monoFont));
     };
 
     const spawnOpts = {
@@ -234,7 +257,7 @@ function render(opts) {
   });
 }
 
-module.exports = { render, isAsciiDoc, tempSourcePath, fileBaseHref, injectBase, resolveExecutable, interpretBatch };
+module.exports = { render, isAsciiDoc, tempSourcePath, fileBaseHref, injectBase, injectFont, resolveExecutable, interpretBatch };
 return module.exports;
 })({ exports: {} });
 
@@ -507,6 +530,7 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
         text: text || '',
         maxFileSizeKb: this.settings.maxFileSizeKb,
         baseHref: renderer.fileBaseHref(docDir),
+        monoFont: this.monospaceFont(),
       });
       if (gen !== this.renderGeneration) {
         return;
@@ -522,6 +546,16 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
         this.renderPending = false;
         this.requestRender();
       }
+    }
+  }
+
+  /** Obsidian's configured monospace font, e.g. 'FiraCode Nerd Font'. */
+  monospaceFont() {
+    try {
+      const v = getComputedStyle(document.body).getPropertyValue('--font-monospace').trim();
+      return v && v !== 'inherit' ? v : '';
+    } catch (e) {
+      return '';
     }
   }
 

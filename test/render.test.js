@@ -6,7 +6,7 @@ const { mkdtempSync, writeFileSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 
-const { render, isAsciiDoc, fileBaseHref, injectBase, resolveExecutable, interpretBatch } = require('../lib/render.js');
+const { render, isAsciiDoc, fileBaseHref, injectBase, injectFont, resolveExecutable, interpretBatch } = require('../lib/render.js');
 
 const EXE = 'asciidoctor';
 
@@ -33,6 +33,16 @@ test('injectBase only injects once when a head exists', () => {
   const twice = injectBase(once, 'file:///C:/docs/');
   assert.equal(twice, once);
   assert.equal(injectBase('<html><body>x</body></html>', 'file:///C:/'), '<html><body>x</body></html>');
+});
+
+test('injectFont forces the given code font and is idempotent', () => {
+  const html = '<html><head></head><body><pre>x</pre></body></html>';
+  const once = injectFont(html, '"FiraCode Nerd Font",Consolas');
+  assert.match(once, /font-family:"FiraCode Nerd Font",Consolas !important;/);
+  assert.equal(injectFont(once, '"FiraCode Nerd Font",Consolas'), once);
+  const fallback = injectFont('<html><head></head><body></body></html>', '');
+  assert.match(fallback, /--font-monospace|FiraCode|Consolas|monospace/);
+  assert.equal(injectFont('<html><body>x</body></html>', 'x-font'), '<html><body>x</body></html>');
 });
 
 test('render produces html and preserves UTF-8 text', async () => {
