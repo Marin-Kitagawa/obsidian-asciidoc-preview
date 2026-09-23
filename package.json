@@ -4,6 +4,7 @@
   "description": "Live side-by-side AsciiDoc preview for Obsidian, rendered with the local asciidoctor CLI.",
   "main": "main.js",
   "scripts": {
+    "build": "node build.js",
     "test": "node --test \"test/*.test.js\""
   },
   "keywords": ["obsidian", "plugin", "asciidoc", "asciidoctor", "preview"],

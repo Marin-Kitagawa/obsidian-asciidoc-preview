@@ -32,7 +32,17 @@ wrapper cannot interfere with quoting.
 
 == Install
 
-. Copy this folder into `<vault>/.obsidian/plugins/asciidoc-preview/`
+. Build a single-file bundle (Obsidian loads each plugin from one
+  `main.js`; its loader has no module path resolution, so `lib/render.js`
+  must be inlined):
+
+[source,sh]
+----
+npm run build
+----
+
+. Copy `dist/main.js`, `manifest.json` and `styles.css` into
+  `<vault>/.obsidian/plugins/asciidoc-preview/`
   (mind the folder name: it must match the plugin `id` in `manifest.json`).
 . Restart Obsidian and enable *AsciiDoc Preview* in *Settings → Community
   plugins*.
@@ -78,11 +88,15 @@ Implementation notes:
   temp source in the document folder, call asciidoctor with `-o -`, `cwd`
   and `docdir` pointed at that folder, and return the HTML.
 - `main.js` hosts the `ItemView`, event wiring, commands and settings.
+- `build.js` inlines `lib/render.js` into `dist/main.js` (a single, dependency-free
+  file). Obsidian's plugin loader evaluates `main.js` with a custom `require` that
+  has no relative-path resolution, so multi-file plugins must be bundled.
 
-To run the renderer tests:
+To run the renderer and loader tests:
 
 [source,sh]
 ----
+npm run build
 npm test
 ----
 
