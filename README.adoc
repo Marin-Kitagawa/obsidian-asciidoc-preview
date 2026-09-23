@@ -1,0 +1,93 @@
+= Obsidian AsciiDoc Preview
+
+A plugin for https://obsidian.md[Obsidian] that renders an AsciiDoc document
+side-by-side next to your editor, using your *local* `asciidoctor` CLI.
+
+*Previews live as you type* (debounced) or *on save* — both modes are one
+command away.
+
+== Features
+
+- Side-by-side preview (pane opens to the right of the active editor).
+- Live mode: re-renders while you type (`editor-change`, debounced).
+- Save mode: re-renders when the document is saved (`vault` `modify` event).
+- UTF-8 safe: the buffer is written to a file hidden next to the document
+  (asciidoctor mangles non-ASCII text on Windows when fed via stdin).
+- `include::[]`, image and link references resolve exactly as they do for the
+  real document, because the preview source is co-located with it.
+- Preview opens in a sandboxed iframe (`allow-same-origin`, scripts blocked)
+  so document content cannot run code inside Obsidian.
+- Settings: executable, live/save mode, debounce delay, max file size,
+  auto-open.
+
+== Requirements
+
+- Windows / macOS / Linux
+- Obsidian >= 1.4
+- A local `asciidoctor` executable on `PATH` (https://asciidoctor.org[asciidoctor.org])
+
+On Windows the `asciidoctor` gem ships as a `.bat` wrapper. The plugin resolves
+it on `PATH`, reads the wrapper, and launches its real interpreter (Ruby) so the
+wrapper cannot interfere with quoting.
+
+== Install
+
+. Copy this folder into `<vault>/.obsidian/plugins/asciidoc-preview/`
+  (mind the folder name: it must match the plugin `id` in `manifest.json`).
+. Restart Obsidian and enable *AsciiDoc Preview* in *Settings → Community
+  plugins*.
+. Open an `.adoc` / `.asciidoc` / `.ad` file.
+
+== Usage
+
+[Rounded-corner,cols="2*"]
+|===
+| Command | Action
+
+| Toggle AsciiDoc side-by-side preview
+| Opens the preview pane beside the active editor, or closes it when open.
+
+| Toggle live / on-save preview mode
+| Switches between rendering while typing and rendering on save.
+
+| Re-render AsciiDoc preview
+| Forces a re-render.
+|===
+
+A ribbon icon (open book) toggles the preview. The status bar shows the active
+mode when an AsciiDoc file is focused.
+
+TIP: relative images — `image::img/logo.png[]` with `img/logo.png` next to the
+document — render correctly because the preview HTML gets a `<base href>` to the
+document folder.
+
+== Settings
+
+- *asciidoctor executable* — command or absolute path (default `asciidoctor`).
+- *Preview mode* — `live` (default) or `save`.
+- *Debounce (ms)* — pause between live re-renders (default `400`).
+- *Max file size (KB)* — skip rendering larger documents (default `4096`).
+- *Auto-open preview* — open the preview when an AsciiDoc file is opened
+  (default on).
+
+== Development
+
+Implementation notes:
+
+- `lib/render.js` is dependency-free CommonJS: write the buffer to a hidden
+  temp source in the document folder, call asciidoctor with `-o -`, `cwd`
+  and `docdir` pointed at that folder, and return the HTML.
+- `main.js` hosts the `ItemView`, event wiring, commands and settings.
+
+To run the renderer tests:
+
+[source,sh]
+----
+npm test
+----
+
+NOTE: tests call your local `asciidoctor`, so it must be installed first.
+
+== License
+
+MIT

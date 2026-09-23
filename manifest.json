@@ -1,0 +1,11 @@
+{
+  "id": "asciidoc-preview",
+  "name": "AsciiDoc Preview",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "Live side-by-side preview for AsciiDoc files, rendered with the local asciidoctor CLI.",
+  "author": "Marin Kitagawa",
+  "authorUrl": "https://github.com/Marin-Kitagawa",
+  "fundingUrl": "",
+  "isDesktopOnly": true
+}

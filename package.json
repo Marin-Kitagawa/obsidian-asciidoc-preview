@@ -1,0 +1,14 @@
+{
+  "name": "obsidian-asciidoc-preview",
+  "version": "0.1.0",
+  "description": "Live side-by-side AsciiDoc preview for Obsidian, rendered with the local asciidoctor CLI.",
+  "main": "main.js",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  },
+  "keywords": ["obsidian", "plugin", "asciidoc", "asciidoctor", "preview"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
