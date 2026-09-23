@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
   mode: 'live', // 'live' | 'save'
   autoOpen: true,
   maxFileSizeKb: 4096,
+  monoFont: '', // e.g. 'FiraCode Nerd Font'
 };
 
 /* ------------------------------------------------------------------ */
@@ -291,8 +292,12 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
     }
   }
 
-  /** Obsidian's configured monospace font, e.g. 'FiraCode Nerd Font'. */
+  /** User override, else Obsidian's configured monospace font. */
   monospaceFont() {
+    const override = (this.settings.monoFont || '').trim();
+    if (override) {
+      return override;
+    }
     try {
       const v = getComputedStyle(document.body).getPropertyValue('--font-monospace').trim();
       return v && v !== 'inherit' ? v : '';
@@ -387,6 +392,20 @@ class AsciiDocPreviewSettingTab extends PluginSettingTab {
             const n = parseInt(value, 10);
             this.plugin.settings.maxFileSizeKb = Number.isFinite(n) && n > 0 ? n : 4096;
             await this.plugin.saveData(this.plugin.settings);
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Preview monospace font')
+      .setDesc('Font used for code blocks in the preview. Leave empty to use Obsidian\'s monospace font (e.g. from Settings → Appearance → Font).')
+      .addText((text) =>
+        text
+          .setPlaceholder('FiraCode Nerd Font')
+          .setValue(this.plugin.settings.monoFont || '')
+          .onChange(async (value) => {
+            this.plugin.settings.monoFont = value.trim();
+            await this.plugin.saveData(this.plugin.settings);
+            this.plugin.requestRender();
           })
       );
 
