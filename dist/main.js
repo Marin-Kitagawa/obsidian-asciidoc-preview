@@ -189,6 +189,7 @@ function injectFont(html, monoFont) {
  * @param {number} [opts.maxFileSizeKb=4096] Reject documents larger than this.
  * @param {string} [opts.baseHref=''] Optional file:// base URL for relative resources.
  * @param {string} [opts.monoFont=''] Optional CSS font-family list for code blocks.
+ * @param {string} [opts.sourceHighlighter=''] e.g. 'rouge'; silently skipped if unavailable.
  * @param {number} [opts.timeoutMs=20000] Kill asciidoctor after this long.
  * @returns {Promise<string>} Resolves with the rendered HTML document.
  */
@@ -199,6 +200,7 @@ function render(opts) {
   const maxSize = opts.maxFileSizeKb ? opts.maxFileSizeKb * 1024 : 0;
   const timeoutMs = opts.timeoutMs || 20000;
   const baseHref = opts.baseHref || '';
+  const highlighter = (opts.sourceHighlighter || '').trim();
 
   if (maxSize && text.length > maxSize) {
     const err = new Error('Document exceeds maxFileSizeKb (' + opts.maxFileSizeKb + ' KB); not rendering.');
@@ -234,25 +236,40 @@ function render(opts) {
         reject(err);
         return;
       }
-      const args = ['-b', 'html5', '-o', '-'];
-      if (docDir) {
-        args.push('-a', 'docdir=' + docDir);
-      }
-      args.push(src);
+      const buildArgs = (hl) => {
+        const a = ['-b', 'html5', '-o', '-'];
+        if (docDir) {
+          a.push('-a', 'docdir=' + docDir);
+        }
+        if (hl) {
+          a.push('-a', 'source-highlighter=' + hl);
+        }
+        a.push(src);
+        return a;
+      };
 
       const resolved = resolveExecutable(executable);
-      let spawnArgs = args;
+      let launch;
       if (process.platform === 'win32' && /\.(bat|cmd)$/i.test(resolved)) {
         const int = interpretBatch(resolved);
         if (!int) {
           reject(new Error('Cannot interpret .bat/.cmd "' + resolved + '"; set "executable" to the real interpreter instead.'));
           return;
         }
-        spawnArgs = [int.script].concat(args);
-        execFile(int.interpreter, spawnArgs, spawnOpts, done);
+        launch = (hl, cb) => execFile(int.interpreter, [int.script].concat(buildArgs(hl)), spawnOpts, cb);
       } else {
-        execFile(resolved, spawnArgs, spawnOpts, done);
+        launch = (hl, cb) => execFile(resolved, buildArgs(hl), spawnOpts, cb);
       }
+
+      const finish = (execErr, stdout, stderr) => {
+        if (execErr && highlighter && /highlighter/i.test(String(stderr || execErr.message || ''))) {
+          launch('', done);
+          return;
+        }
+        done(execErr, stdout, stderr);
+      };
+
+      launch(highlighter, finish);
     });
   });
 }
@@ -270,6 +287,7 @@ const DEFAULT_SETTINGS = {
   autoOpen: true,
   maxFileSizeKb: 4096,
   monoFont: '', // e.g. 'FiraCode Nerd Font'
+  sourceHighlighter: 'rouge', // 'rouge' | 'coderay' | 'pygments' | '' (none)
 };
 
 /* ------------------------------------------------------------------ */
@@ -553,6 +571,7 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
         maxFileSizeKb: this.settings.maxFileSizeKb,
         baseHref: renderer.fileBaseHref(docDir),
         monoFont: this.monospaceFont(),
+        sourceHighlighter: this.settings.sourceHighlighter,
       });
       if (gen !== this.renderGeneration) {
         return;
@@ -683,6 +702,20 @@ class AsciiDocPreviewSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.monoFont || '')
           .onChange(async (value) => {
             this.plugin.settings.monoFont = value.trim();
+            await this.plugin.saveData(this.plugin.settings);
+            this.plugin.requestRender();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Syntax highlighter')
+      .setDesc('Server-side highlighter for [source] blocks. "rouge" needs the rouge gem; empty disables highlighting.')
+      .addText((text) =>
+        text
+          .setPlaceholder('rouge')
+          .setValue(this.plugin.settings.sourceHighlighter || '')
+          .onChange(async (value) => {
+            this.plugin.settings.sourceHighlighter = value.trim();
             await this.plugin.saveData(this.plugin.settings);
             this.plugin.requestRender();
           })

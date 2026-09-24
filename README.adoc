@@ -17,14 +17,26 @@ command away.
   real document, because the preview source is co-located with it.
 - Preview opens in a sandboxed iframe (`allow-same-origin`, scripts blocked)
   so document content cannot run code inside Obsidian.
+- Syntax highlighting for `[source]` blocks via the local
+  https://github.com/rouge-ruby/rouge[Rouge] gem (server-side; no scripts, no
+  network). Degrades to plain monospace when the gem is absent.
 - Settings: executable, live/save mode, debounce delay, max file size,
-  auto-open.
+  auto-open, preview monospace font, syntax highlighter.
 
 == Requirements
 
 - Windows / macOS / Linux
 - Obsidian >= 1.4
 - A local `asciidoctor` executable on `PATH` (https://asciidoctor.org[asciidoctor.org])
+- Optional: the `rouge` gem for syntax highlighting:
+
+[source,sh]
+----
+gem install rouge
+----
+
+If `rouge` is not installed, `[source]` blocks still render, just without
+colors — the plugin retries the render without the highlighter.
 
 On Windows the `asciidoctor` gem ships as a `.bat` wrapper. The plugin resolves
 it on `PATH`, reads the wrapper, and launches its real interpreter (Ruby) so the
@@ -71,12 +83,27 @@ TIP: relative images — `image::img/logo.png[]` with `img/logo.png` next to the
 document — render correctly because the preview HTML gets a `<base href>` to the
 document folder.
 
+TIP: code blocks need the listing delimiter `----`; the example delimiter `====`
+is a plain block and is not highlighted:
+
+[source,asciidoc]
+----
+[source,scala]
+----
+println("Hello, World!")
+----
+----
+
 == Settings
 
 - *asciidoctor executable* — command or absolute path (default `asciidoctor`).
 - *Preview mode* — `live` (default) or `save`.
 - *Debounce (ms)* — pause between live re-renders (default `400`).
 - *Max file size (KB)* — skip rendering larger documents (default `4096`).
+- *Preview monospace font* — code-block font; empty uses Obsidian's monospace
+  font (e.g. `FiraCode Nerd Font`).
+- *Syntax highlighter* — server-side highlighter for `[source]` blocks
+  (default `rouge`; empty disables it).
 - *Auto-open preview* — open the preview when an AsciiDoc file is opened
   (default on).
 

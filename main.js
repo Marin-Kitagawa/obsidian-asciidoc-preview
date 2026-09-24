@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS = {
   autoOpen: true,
   maxFileSizeKb: 4096,
   monoFont: '', // e.g. 'FiraCode Nerd Font'
+  sourceHighlighter: 'rouge', // 'rouge' | 'coderay' | 'pygments' | '' (none)
 };
 
 /* ------------------------------------------------------------------ */
@@ -295,6 +296,7 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
         maxFileSizeKb: this.settings.maxFileSizeKb,
         baseHref: renderer.fileBaseHref(docDir),
         monoFont: this.monospaceFont(),
+        sourceHighlighter: this.settings.sourceHighlighter,
       });
       if (gen !== this.renderGeneration) {
         return;
@@ -425,6 +427,20 @@ class AsciiDocPreviewSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.monoFont || '')
           .onChange(async (value) => {
             this.plugin.settings.monoFont = value.trim();
+            await this.plugin.saveData(this.plugin.settings);
+            this.plugin.requestRender();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Syntax highlighter')
+      .setDesc('Server-side highlighter for [source] blocks. "rouge" needs the rouge gem; empty disables highlighting.')
+      .addText((text) =>
+        text
+          .setPlaceholder('rouge')
+          .setValue(this.plugin.settings.sourceHighlighter || '')
+          .onChange(async (value) => {
+            this.plugin.settings.sourceHighlighter = value.trim();
             await this.plugin.saveData(this.plugin.settings);
             this.plugin.requestRender();
           })

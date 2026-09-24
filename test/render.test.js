@@ -76,6 +76,31 @@ test('render resolves include:: relative to docDir', async () => {
   }
 });
 
+test('render highlights [source] blocks with rouge', async () => {
+  const html = await render({
+    executable: EXE,
+    docPath: 'hl.adoc',
+    docDir: tmpdir(),
+    text: '= H\n\n[source,scala]\n----\nobject Hello\n----',
+    sourceHighlighter: 'rouge',
+  });
+  assert.match(html, /class="rouge highlight"/);
+  assert.match(html, /<span class="k">object<\/span>/);
+  assert.match(html, /pre\.rouge/);
+});
+
+test('render silently falls back when the highlighter is unavailable', async () => {
+  const html = await render({
+    executable: EXE,
+    docPath: 'hl2.adoc',
+    docDir: tmpdir(),
+    text: '= H\n\n[source,scala]\n----\nobject Hello\n----',
+    sourceHighlighter: 'definitely-not-a-real-highlighter',
+  });
+  assert.match(html, /<pre class="highlight">/);
+  assert.doesNotMatch(html, /class="rouge highlight"/);
+});
+
 test('render rejects oversized documents before spawning', async () => {
   await assert.rejects(
     render({ executable: EXE, docPath: 'big.adoc', docDir: tmpdir(), text: 'x'.repeat(10), maxFileSizeKb: 0.001 }),
