@@ -367,6 +367,7 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
     this.rendering = false;
     this.renderPending = false;
     this.renderGeneration = 0;
+    this.currentFilePath = null;
 
     this.registerView(VIEW_TYPE, (leaf) => new AsciiDocPreviewView(leaf, this));
     this.registerExtensions(['adoc', 'asciidoc', 'ad'], 'markdown');
@@ -422,14 +423,24 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
           }
           return;
         }
-        this.debouncedRender();
+        if (renderer.isAsciiDoc(file && file.path)) {
+          this.debouncedRender();
+        } else {
+          this.app.workspace.detachLeavesOfType(VIEW_TYPE);
+        }
       })
     );
     this.registerEvent(
       this.app.workspace.on('active-leaf-change', () => {
         this.updateStatus();
-        if (this.getPreviewLeaves().length > 0) {
+        if (this.getPreviewLeaves().length === 0 || this.isPreviewActive()) {
+          return;
+        }
+        const file = this.app.workspace.getActiveFile();
+        if (renderer.isAsciiDoc(file && file.path)) {
           this.debouncedRender();
+        } else {
+          this.app.workspace.detachLeavesOfType(VIEW_TYPE);
         }
       })
     );
@@ -448,6 +459,12 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
 
   getPreviewLeaves() {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE);
+  }
+
+  /** True when the preview pane itself currently has focus. */
+  isPreviewActive() {
+    const leaf = this.app.workspace.activeLeaf;
+    return !!(leaf && leaf.view && leaf.view.getViewType && leaf.view.getViewType() === VIEW_TYPE);
   }
 
   /**
@@ -488,15 +505,19 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
       return;
     }
     const view = this.getPreviewLeaves()[0].view;
-    const file = this.app.workspace.getActiveFile();
+    let file = this.app.workspace.getActiveFile();
+    if (!file && this.isPreviewActive() && this.currentFilePath) {
+      file = this.app.vault.getAbstractFileByPath(this.currentFilePath);
+    }
     if (!file) {
       view.setMessage('No active file.');
       return;
     }
     if (!renderer.isAsciiDoc(file.path)) {
-      view.setMessage(file.name + ' is not an AsciiDoc file.');
+      this.app.workspace.detachLeavesOfType(VIEW_TYPE);
       return;
     }
+    this.currentFilePath = file.path;
 
     if (this.rendering) {
       this.renderPending = true;
