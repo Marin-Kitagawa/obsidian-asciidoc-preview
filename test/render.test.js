@@ -143,7 +143,7 @@ test('render surfaces asciidoctor stderr in the rejection message', async () => 
   try {
     if (process.platform !== 'win32') {
       await assert.rejects(
-        render({ executable: 'definitely-not-a-real-asciidoctor', docPath: 'x.adoc', docDir: dir, text: '= x', timeoutMs: 8000 })
+        render({ renderer: 'cli', executable: 'definitely-not-a-real-asciidoctor', docPath: 'x.adoc', docDir: dir, text: '= x', timeoutMs: 8000 })
       );
       return;
     }
@@ -155,7 +155,7 @@ test('render surfaces asciidoctor stderr in the rejection message', async () => 
     writeFileSync(stub, '@ECHO OFF\r\n@"' + real.interpreter + '" "%~dp0\\stub-run.rb" %*\r\n', 'utf8');
     writeFileSync(run, "STDERR.puts 'FAKE_ASCIIDOCTOR_ERROR'\nexit 3\n", 'utf8');
     await assert.rejects(
-      render({ executable: stub, docPath: 'x.adoc', docDir: dir, text: '= x', timeoutMs: 8000 }),
+      render({ renderer: 'cli', executable: stub, docPath: 'x.adoc', docDir: dir, text: '= x', timeoutMs: 8000 }),
       /FAKE_ASCIIDOCTOR_ERROR/
     );
   } finally {
