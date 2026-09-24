@@ -1,6 +1,6 @@
 'use strict';
 
-const { Plugin, ItemView, MarkdownView, Notice, debounce, PluginSettingTab, Setting } = require('obsidian');
+const { Plugin, ItemView, MarkdownView, Notice, Modal, TFolder, debounce, PluginSettingTab, Setting } = require('obsidian');
 const renderer = require('./lib/render.js');
 
 const VIEW_TYPE = 'asciidoc-preview';
@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   maxFileSizeKb: 4096,
   monoFont: '', // e.g. 'FiraCode Nerd Font'
   sourceHighlighter: 'rouge', // 'rouge' | 'coderay' | 'pygments' | '' (none)
+  renderer: 'auto', // 'auto' | 'cli' | 'js'
 };
 
 /* ------------------------------------------------------------------ */
@@ -100,6 +101,58 @@ class AsciiDocPreviewView extends ItemView {
   }
 }
 
+/**
+ * Turn free text into a safe AsciiDoc filename. Strips path separators and
+ * illegal characters, forces an AsciiDoc extension, returns '' if nothing is
+ * left.
+ * @param {string} raw
+ * @returns {string}
+ */
+function sanitizeAsciiDocName(raw) {
+  let name = String(raw == null ? '' : raw).trim();
+  name = name.replace(/[\\/:*?"<>|]/g, '').replace(/\.+$/, '').trim();
+  if (!name) {
+    return '';
+  }
+  if (!renderer.isAsciiDoc(name)) {
+    name = name.replace(/\.[^./\\]+$/, '') + '.adoc';
+  }
+  return name;
+}
+
+class NewAsciiDocModal extends Modal {
+  /** @param {import('obsidian').App} app @param {(name: string) => void} onSubmit */
+  constructor(app, onSubmit) {
+    super(app);
+    this.onSubmit = onSubmit;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.createEl('h3', { text: 'New AsciiDoc file' });
+    const input = contentEl.createEl('input', { type: 'text', cls: 'asciidoc-preview__name-input' });
+    input.placeholder = 'guide.adoc';
+    const submit = () => {
+      const value = input.value;
+      this.close();
+      this.onSubmit(value);
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        submit();
+      }
+    });
+    const row = contentEl.createDiv({ cls: 'asciidoc-preview__modal-actions' });
+    const btn = row.createEl('button', { text: 'Create', cls: 'mod-cta' });
+    btn.addEventListener('click', submit);
+    input.focus();
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Plugin                                                             */
 /* ------------------------------------------------------------------ */
@@ -136,6 +189,11 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
       id: 're-render',
       name: 'Re-render AsciiDoc preview',
       callback: () => this.requestRender(true),
+    });
+    this.addCommand({
+      id: 'new-asciidoc-file',
+      name: 'Create new AsciiDoc file',
+      callback: () => this.promptNewAsciiDoc(null),
     });
 
     this.debouncedRender = debounce(() => this.requestRender(), this.settings.debounceMs, true);
@@ -188,6 +246,27 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
       })
     );
 
+    this.registerEvent(
+      this.app.workspace.on('file-menu', (menu, file) => {
+        if (file instanceof TFolder) {
+          menu.addItem((item) =>
+            item
+              .setTitle('New AsciiDoc file')
+              .setIcon('file-plus')
+              .onClick(() => this.promptNewAsciiDoc(file))
+          );
+        }
+      })
+    );
+
+    this.registerEvent(
+      this.app.workspace.on('css-change', () => {
+        if (this.getPreviewLeaves().length > 0) {
+          this.requestRender();
+        }
+      })
+    );
+
     this.addSettingTab(new AsciiDocPreviewSettingTab(this.app, this));
 
     this.statusBarEl = this.addStatusBarItem();
@@ -204,10 +283,48 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE);
   }
 
+  /**
+   * Prompt for a name and create a new AsciiDoc file in `folder` (or beside the
+   * active file, falling back to the vault root), then open it.
+   * @param {import('obsidian').TFolder | null} folder
+   */
+  promptNewAsciiDoc(folder) {
+    new NewAsciiDocModal(this.app, async (raw) => {
+      const name = sanitizeAsciiDocName(raw);
+      if (!name) {
+        new Notice('Enter a valid file name.');
+        return;
+      }
+      const active = this.app.workspace.getActiveFile();
+      const dir = folder ? folder.path : active && active.parent ? active.parent.path : '';
+      const path = dir ? dir + '/' + name : name;
+      if (this.app.vault.getAbstractFileByPath(path)) {
+        new Notice('"' + path + '" already exists.');
+        return;
+      }
+      try {
+        const title = name.replace(/\.(adoc|asciidoc|ad)$/i, '');
+        const file = await this.app.vault.create(path, '= ' + title + '\n\n');
+        await this.app.workspace.getLeaf(false).openFile(file);
+      } catch (e) {
+        new Notice('Could not create file: ' + (e && e.message ? e.message : e));
+      }
+    }).open();
+  }
+
   /** True when the preview pane itself currently has focus. */
   isPreviewActive() {
     const leaf = this.app.workspace.activeLeaf;
     return !!(leaf && leaf.view && leaf.view.getViewType && leaf.view.getViewType() === VIEW_TYPE);
+  }
+
+  /** True when Obsidian is using a dark theme (selects the highlight.js theme). */
+  isDarkTheme() {
+    try {
+      return document.body.classList.contains('theme-dark');
+    } catch (e) {
+      return false;
+    }
   }
 
   /**
@@ -297,6 +414,8 @@ module.exports = class AsciiDocPreviewPlugin extends Plugin {
         baseHref: renderer.fileBaseHref(docDir),
         monoFont: this.monospaceFont(),
         sourceHighlighter: this.settings.sourceHighlighter,
+        renderer: this.settings.renderer,
+        darkTheme: this.isDarkTheme(),
       });
       if (gen !== this.renderGeneration) {
         return;
@@ -355,6 +474,22 @@ class AsciiDocPreviewSettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
+
+    new Setting(containerEl)
+      .setName('Renderer')
+      .setDesc('auto prefers the local asciidoctor CLI and falls back to the bundled asciidoctor.js; cli requires Ruby; js needs no Ruby.')
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption('auto', 'Auto (CLI, then asciidoctor.js)')
+          .addOption('cli', 'Local asciidoctor CLI (Ruby)')
+          .addOption('js', 'Bundled asciidoctor.js (no Ruby)')
+          .setValue(this.plugin.settings.renderer || 'auto')
+          .onChange(async (value) => {
+            this.plugin.settings.renderer = value;
+            await this.plugin.saveData(this.plugin.settings);
+            this.plugin.requestRender();
+          })
+      );
 
     new Setting(containerEl)
       .setName('asciidoctor executable')
@@ -434,7 +569,7 @@ class AsciiDocPreviewSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Syntax highlighter')
-      .setDesc('Server-side highlighter for [source] blocks. "rouge" needs the rouge gem; empty disables highlighting.')
+      .setDesc('Highlighter for [source] blocks. With the CLI renderer this is a Ruby gem (e.g. rouge); the js renderer always uses the bundled highlight.js. Empty disables highlighting.')
       .addText((text) =>
         text
           .setPlaceholder('rouge')

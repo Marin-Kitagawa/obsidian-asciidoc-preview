@@ -22,10 +22,12 @@ function obsidianStub() {
   class ItemView { constructor(leaf) { this.leaf = leaf; } }
   class MarkdownView {}
   class Notice {}
+  class Modal { constructor(app) { this.app = app; } open() {} close() {} }
+  class TFolder {}
   class PluginSettingTab { constructor(app, plugin) { this.app = app; this.plugin = plugin; } }
   class Setting { constructor() {} setName() { return this; } setDesc() { return this; } addText() { return this; } addDropdown() { return this; } addToggle() { return this; } }
   function debounce(fn, wait, reset) { const f = (...a) => setTimeout(() => fn(...a), wait); f.cancel = () => {}; return f; }
-  return { Plugin, ItemView, MarkdownView, Notice, debounce, PluginSettingTab, Setting };
+  return { Plugin, ItemView, MarkdownView, Notice, Modal, TFolder, debounce, PluginSettingTab, Setting };
 }
 
 /** Emulates the whitespace/source-map trimming + window.eval wrapper. */

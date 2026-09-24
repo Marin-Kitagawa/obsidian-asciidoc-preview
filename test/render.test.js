@@ -108,8 +108,34 @@ test('render rejects oversized documents before spawning', async () => {
   );
 });
 
-test('render rejects when the executable is missing', async () => {
-  await assert.rejects(render({ executable: 'definitely-not-a-real-asciidoctor', docPath: 'x.adoc', docDir: tmpdir(), text: '= x', timeoutMs: 8000 }));
+test('render rejects when the executable is missing (cli renderer)', async () => {
+  await assert.rejects(render({ renderer: 'cli', executable: 'definitely-not-a-real-asciidoctor', docPath: 'x.adoc', docDir: tmpdir(), text: '= x', timeoutMs: 8000 }));
+});
+
+test('auto renderer falls back to bundled asciidoctor.js when the CLI is missing', async () => {
+  const html = await render({
+    executable: 'definitely-not-a-real-asciidoctor',
+    docPath: 'x.adoc',
+    docDir: tmpdir(),
+    text: '= Fallback\n\nHello from JS.',
+  });
+  assert.match(html, /<head>/);
+  assert.ok(html.includes('Hello from JS.'), 'js renderer did not render body');
+  assert.match(html, /<style>/, 'embedded asciidoctor stylesheet missing');
+});
+
+test('js renderer produces a full document and highlights with highlight.js', async () => {
+  const html = await render({
+    renderer: 'js',
+    docPath: 'hl-js.adoc',
+    docDir: tmpdir(),
+    text: '= H\n\n[source,scala]\n----\nobject Hello { def x = 1 }\n----',
+    sourceHighlighter: 'rouge',
+  });
+  assert.match(html, /^<!DOCTYPE html>/i);
+  assert.match(html, /<style id="asciidoc-preview-hljs">/);
+  assert.match(html, /class="hljs language-scala"/);
+  assert.match(html, /<span class="hljs-keyword">/);
 });
 
 test('render surfaces asciidoctor stderr in the rejection message', async () => {

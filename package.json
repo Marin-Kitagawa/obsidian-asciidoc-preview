@@ -1,15 +1,28 @@
 {
   "name": "obsidian-asciidoc-preview",
-  "version": "0.1.0",
-  "description": "Live side-by-side AsciiDoc preview for Obsidian, rendered with the local asciidoctor CLI.",
+  "version": "0.2.0",
+  "description": "Live side-by-side AsciiDoc preview for Obsidian, rendered with the local asciidoctor CLI or bundled asciidoctor.js.",
   "main": "main.js",
   "scripts": {
     "build": "node build.js",
     "test": "node --test \"test/*.test.js\""
   },
-  "keywords": ["obsidian", "plugin", "asciidoc", "asciidoctor", "preview"],
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "asciidoc",
+    "asciidoctor",
+    "preview"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "dependencies": {
+    "@asciidoctor/core": "^3.0.4",
+    "highlight.js": "^11.12.0"
   }
 }

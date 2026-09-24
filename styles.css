@@ -31,3 +31,13 @@
   border: 0;
   background: #fff;
 }
+
+.asciidoc-preview__name-input {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.asciidoc-preview__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+}

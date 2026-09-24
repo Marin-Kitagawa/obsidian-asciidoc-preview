@@ -1,7 +1,9 @@
 = Obsidian AsciiDoc Preview
 
 A plugin for https://obsidian.md[Obsidian] that renders an AsciiDoc document
-side-by-side next to your editor, using your *local* `asciidoctor` CLI.
+side-by-side next to your editor, using your *local* `asciidoctor` CLI — or the
+*bundled* https://github.com/asciidoctor/asciidoctor.js[asciidoctor.js] when Ruby
+is not available.
 
 *Previews live as you type* (debounced) or *on save* — both modes are one
 command away.
@@ -9,26 +11,30 @@ command away.
 == Features
 
 - Side-by-side preview (pane opens to the right of the active editor).
+- Two renderers, selectable in settings:
+  - *Local `asciidoctor` CLI* (Ruby) — full asciidoctor features, `include::[]`,
+    and Ruby highlighters (rouge/coderay/pygments).
+  - *Bundled asciidoctor.js* — no Ruby, no gems; syntax highlighting via
+    highlight.js. Used automatically when the CLI is missing.
 - Live mode: re-renders while you type (`editor-change`, debounced).
 - Save mode: re-renders when the document is saved (`vault` `modify` event).
 - UTF-8 safe: the buffer is written to a file hidden next to the document
   (asciidoctor mangles non-ASCII text on Windows when fed via stdin).
 - `include::[]`, image and link references resolve exactly as they do for the
-  real document, because the preview source is co-located with it.
+  real document, because the preview source is co-located with it (CLI renderer).
 - Preview opens in a sandboxed iframe (`allow-same-origin`, scripts blocked)
   so document content cannot run code inside Obsidian.
-- Syntax highlighting for `[source]` blocks via the local
-  https://github.com/rouge-ruby/rouge[Rouge] gem (server-side; no scripts, no
-  network). Degrades to plain monospace when the gem is absent.
-- Settings: executable, live/save mode, debounce delay, max file size,
+- Settings: renderer, executable, live/save mode, debounce delay, max file size,
   auto-open, preview monospace font, syntax highlighter.
 
 == Requirements
 
 - Windows / macOS / Linux
 - Obsidian >= 1.4
-- A local `asciidoctor` executable on `PATH` (https://asciidoctor.org[asciidoctor.org])
-- Optional: the `rouge` gem for syntax highlighting:
+- *Either* a local `asciidoctor` executable on `PATH`
+  (https://asciidoctor.org[asciidoctor.org]) *or* nothing — the bundled
+  asciidoctor.js covers machines without Ruby.
+- Optional: the `rouge` gem for Ruby-side syntax highlighting:
 
 [source,sh]
 ----
@@ -36,7 +42,8 @@ gem install rouge
 ----
 
 If `rouge` is not installed, `[source]` blocks still render, just without
-colors — the plugin retries the render without the highlighter.
+colors — the plugin retries the render without the highlighter. The bundled
+asciidoctor.js renderer always uses highlight.js for highlighting.
 
 On Windows the `asciidoctor` gem ships as a `.bat` wrapper. The plugin resolves
 it on `PATH`, reads the wrapper, and launches its real interpreter (Ruby) so the
@@ -74,10 +81,15 @@ npm run build
 
 | Re-render AsciiDoc preview
 | Forces a re-render.
+
+| Create new AsciiDoc file
+| Prompts for a name, creates a `.adoc` file (beside the active file, or in the
+  right-clicked folder) and opens it.
 |===
 
 A ribbon icon (open book) toggles the preview. The status bar shows the active
-mode when an AsciiDoc file is focused.
+mode when an AsciiDoc file is focused. To create a file in a specific folder,
+right-click the folder in the file explorer and choose *New AsciiDoc file*.
 
 TIP: relative images — `image::img/logo.png[]` with `img/logo.png` next to the
 document — render correctly because the preview HTML gets a `<base href>` to the
@@ -96,14 +108,16 @@ println("Hello, World!")
 
 == Settings
 
+- *Renderer* — `auto` (default; CLI then asciidoctor.js), `cli` (Ruby only) or
+  `js` (bundled asciidoctor.js, no Ruby).
 - *asciidoctor executable* — command or absolute path (default `asciidoctor`).
 - *Preview mode* — `live` (default) or `save`.
 - *Debounce (ms)* — pause between live re-renders (default `400`).
 - *Max file size (KB)* — skip rendering larger documents (default `4096`).
 - *Preview monospace font* — code-block font; empty uses Obsidian's monospace
   font (e.g. `FiraCode Nerd Font`).
-- *Syntax highlighter* — server-side highlighter for `[source]` blocks
-  (default `rouge`; empty disables it).
+- *Syntax highlighter* — `[source]` highlighter. CLI renderer: a Ruby gem name
+  (default `rouge`); js renderer: always highlight.js. Empty disables it.
 - *Auto-open preview* — open the preview when an AsciiDoc file is opened
   (default on).
 
@@ -111,23 +125,29 @@ println("Hello, World!")
 
 Implementation notes:
 
-- `lib/render.js` is dependency-free CommonJS: write the buffer to a hidden
-  temp source in the document folder, call asciidoctor with `-o -`, `cwd`
-  and `docdir` pointed at that folder, and return the HTML.
-- `main.js` hosts the `ItemView`, event wiring, commands and settings.
-- `build.js` inlines `lib/render.js` into `dist/main.js` (a single, dependency-free
-  file). Obsidian's plugin loader evaluates `main.js` with a custom `require` that
-  has no relative-path resolution, so multi-file plugins must be bundled.
+- `lib/render.js` is dependency-free CommonJS: it renders either via the local
+  asciidoctor CLI (write the buffer to a hidden temp source in the document
+  folder, call asciidoctor with `-o -`, `cwd` and `docdir` pointed at that
+  folder) or via the bundled asciidoctor.js + highlight.js (used as a fallback).
+- `main.js` hosts the `ItemView`, event wiring, commands, file creation and
+  settings.
+- `build.js` uses esbuild to bundle `main.js` (plus `lib/render.js`,
+  `@asciidoctor/core`, `highlight.js` and their CSS) into a single
+  `dist/main.js`. Obsidian's plugin loader evaluates `main.js` with a custom
+  `require` that has no relative-path resolution, so multi-file plugins must be
+  bundled.
 
 To run the renderer and loader tests:
 
 [source,sh]
 ----
+npm install
 npm run build
 npm test
 ----
 
-NOTE: tests call your local `asciidoctor`, so it must be installed first.
+NOTE: tests exercise both the local `asciidoctor` (if present) and the bundled
+asciidoctor.js; the CLI-specific tests call your local `asciidoctor`.
 
 == License
 
