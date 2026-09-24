@@ -98,14 +98,6 @@ document folder.
 TIP: code blocks need the listing delimiter `----`; the example delimiter `====`
 is a plain block and is not highlighted:
 
-[source,asciidoc]
-----
-[source,scala]
-----
-println("Hello, World!")
-----
-----
-
 == Settings
 
 - *Renderer* — `auto` (default; CLI then asciidoctor.js), `cli` (Ruby only) or
