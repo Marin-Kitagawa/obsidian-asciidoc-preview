@@ -1,0 +1,90 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install asciidoctor + rouge (for the CLI tests)
+        run: gem install asciidoctor rouge --no-document
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Package plugin folder
+        run: |
+          mkdir -p release/asciidoc-preview
+          cp dist/main.js manifest.json styles.css release/asciidoc-preview/
+          cd release && zip -r ../asciidoc-preview.zip asciidoc-preview
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: asciidoc-preview
+          path: |
+            asciidoc-preview.zip
+            dist/main.js
+            manifest.json
+            styles.css
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Package plugin folder
+        run: |
+          mkdir -p release/asciidoc-preview
+          cp dist/main.js manifest.json styles.css release/asciidoc-preview/
+          cd release && zip -r ../asciidoc-preview.zip asciidoc-preview
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: |
+            asciidoc-preview.zip
+            dist/main.js
+            manifest.json
+            styles.css
+          generate_release_notes: true

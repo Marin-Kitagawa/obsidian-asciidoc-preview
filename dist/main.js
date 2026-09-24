@@ -91928,18 +91928,19 @@ var require_render = __commonJS({
     var { join, dirname, basename, extname } = require("path");
     var EXT_RE = /\.(adoc|asciidoc|ad)$/i;
     function resolveExecutable(cmd) {
+      const isWin = process.platform === "win32";
       const hasPath = /[\\/]/.test(cmd);
       if (hasPath) {
         return cmd;
       }
-      const PATHEXT = [".exe", ".com", ".bat", ".cmd"];
-      if (PATHEXT.includes(extname(cmd).toLowerCase())) {
+      const PATHEXT = isWin ? [".exe", ".com", ".bat", ".cmd"] : [""];
+      if (isWin && PATHEXT.includes(extname(cmd).toLowerCase())) {
         return cmd;
       }
-      const dirs = (process.env.PATH || "").split(process.platform === "win32" ? ";" : ":");
+      const dirs = (process.env.PATH || "").split(isWin ? ";" : ":");
       for (const dir of dirs) {
         for (const ext of PATHEXT) {
-          const p = { dir, file: join(dir, cmd + ext) }.file;
+          const p = join(dir, cmd + ext);
           if (existsSync(p)) {
             return p;
           }

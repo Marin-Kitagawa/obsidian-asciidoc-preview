@@ -51,12 +51,26 @@ wrapper cannot interfere with quoting.
 
 == Install
 
-. Build a single-file bundle (Obsidian loads each plugin from one
-  `main.js`; its loader has no module path resolution, so `lib/render.js`
-  must be inlined):
+=== From a release (easiest)
+
+. Download `asciidoc-preview.zip` from the
+  https://github.com/Marin-Kitagawa/obsidian-asciidoc-preview/releases[Releases]
+  page.
+. Extract it into `<vault>/.obsidian/plugins/` — the archive already contains
+  an `asciidoc-preview/` folder, so the files land in the right place.
+. Restart Obsidian and enable *AsciiDoc Preview* in *Settings → Community
+  plugins*.
+. Open an `.adoc` / `.asciidoc` / `.ad` file.
+
+=== From source
+
+. Install dependencies and build a single-file bundle (Obsidian loads each
+   plugin from one `main.js`; its loader has no module path resolution, so
+   everything — including asciidoctor.js and highlight.js — is bundled):
 
 [source,sh]
 ----
+npm install
 npm run build
 ----
 
